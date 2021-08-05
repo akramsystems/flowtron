@@ -131,7 +131,7 @@ def load_checkpoint(checkpoint_path, model, optimizer, ignore_layers=[]):
 def save_checkpoint(model, optimizer, learning_rate, iteration, filepath):
     print("Saving model and optimizer state at iteration {} to {}".format(
           iteration, filepath))
-    model_for_saving = Flowtron(**model_config).cuda()
+    model_for_saving = Flowtron(**model_config)
     model_for_saving.load_state_dict(model.state_dict())
     torch.save({'model': model_for_saving,
                 'iteration': iteration,
@@ -156,10 +156,10 @@ def compute_validation_loss(model, criterion, valset, batch_size,
         for i, batch in enumerate(val_loader):
             (mel, spk_ids, txt, in_lens, out_lens,
                 gate_target, attn_prior) = batch
-            mel, spk_ids, txt = mel.cuda(), spk_ids.cuda(), txt.cuda()
-            in_lens, out_lens = in_lens.cuda(), out_lens.cuda()
-            gate_target = gate_target.cuda()
-            attn_prior = attn_prior.cuda() if attn_prior is not None else None
+            mel, spk_ids, txt = mel, spk_ids, txt
+            in_lens, out_lens = in_lens, out_lens
+            gate_target = gate_target
+            attn_prior = attn_prior if attn_prior is not None else None
             (z, log_s_list, gate_pred, attn, attn_logprob,
                 mean, log_var, prob) = model(
                 mel, spk_ids, txt, in_lens, out_lens, attn_prior)
@@ -211,14 +211,14 @@ def train(n_gpus, rank, output_directory, epochs, optim_algo, learning_rate,
     fp16_run = bool(fp16_run)
     use_ctc_loss = bool(use_ctc_loss)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
     if n_gpus > 1:
         init_distributed(rank, n_gpus, **dist_config)
 
     criterion = FlowtronLoss(sigma, bool(model_config['n_components']),
                              gate_loss, use_ctc_loss, ctc_loss_weight,
                              blank_logprob)
-    model = Flowtron(**model_config).cuda()
+    model = Flowtron(**model_config).cpu()
 
     if len(finetune_layers):
         for name, param in model.named_parameters():
@@ -282,10 +282,10 @@ def train(n_gpus, rank, output_directory, epochs, optim_algo, learning_rate,
             model.zero_grad()
             (mel, spk_ids, txt, in_lens, out_lens,
                 gate_target, attn_prior) = batch
-            mel, spk_ids, txt = mel.cuda(), spk_ids.cuda(), txt.cuda()
-            in_lens, out_lens = in_lens.cuda(), out_lens.cuda()
-            gate_target = gate_target.cuda()
-            attn_prior = attn_prior.cuda() if attn_prior is not None else None
+            mel, spk_ids, txt = mel, spk_ids, txt
+            in_lens, out_lens = in_lens, out_lens
+            gate_target = gate_target
+            attn_prior = attn_prior if attn_prior is not None else None
 
             if use_ctc_loss and iteration >= ctc_loss_start_iter:
                 apply_ctc = True
@@ -410,6 +410,6 @@ if __name__ == "__main__":
     if n_gpus == 1 and rank != 0:
         raise Exception("Doing single GPU training on rank > 0")
 
-    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.enabled = False
     torch.backends.cudnn.benchmark = False
     train(n_gpus, rank, **train_config)

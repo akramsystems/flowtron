@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 ###############################################################################
+import argparse
+import json
 import numpy as np
 import torch
 from torch import nn
@@ -772,17 +774,28 @@ class AR_Step(torch.nn.Module):
 
 
 class Flowtron(torch.nn.Module):
-    def __init__(self, n_speakers, n_speaker_dim, n_text, n_text_dim, n_flows,
-                 n_mel_channels, n_hidden, n_attn_channels, n_lstm_layers,
-                 use_gate_layer, mel_encoder_n_hidden, n_components,
-                 fixed_gaussian, mean_scale, dummy_speaker_embedding,
-                 use_cumm_attention):
+    def __init__(self, n_speakers: int, n_speaker_dim: int, n_text: int, n_text_dim: int, n_flows: int,
+                 n_mel_channels: int, n_hidden: int, n_attn_channels: int, n_lstm_layers: int,
+                 use_gate_layer: bool, mel_encoder_n_hidden: int, n_components: int,
+                 fixed_gaussian: bool, mean_scale: float, dummy_speaker_embedding: bool,
+                 use_cumm_attention: bool):
 
         super(Flowtron, self).__init__()
         norm_fn = nn.InstanceNorm1d
+        
+        # Creates embeddings for our speakers
         self.speaker_embedding = torch.nn.Embedding(n_speakers, n_speaker_dim)
+        # creates Embeddings for our Vocabulary (i.e. text)
         self.embedding = torch.nn.Embedding(n_text, n_text_dim)
+
+        # adds flows to the list of modules that available
+        # i.e. flows.append(torch.nn.Linear(10,10):
+        # ModuleList(
+        #     (0): Linear(in_features=10, out_features=10, bias=True)
+        # )
         self.flows = torch.nn.ModuleList()
+
+        # create an Encoder with instance normalization and with n_text_dim input)
         self.encoder = Encoder(norm_fn=norm_fn, encoder_embedding_dim=n_text_dim)
         self.dummy_speaker_embedding = dummy_speaker_embedding
 
@@ -902,3 +915,24 @@ class Flowtron(torch.nn.Module):
         flow.attention_layer.temperature = temperature
         if hasattr(flow, 'gate_layer'):
             flow.gate_threshold = gate_threshold
+
+
+if __name__ == "__main__":
+    # get params
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=str,
+                        help='JSON file for configuration')
+    parser.add_argument('-p', '--params', nargs='+', default=[])
+    args = parser.parse_args()
+    args.rank = 0
+    
+    with open(args.config) as f:
+        data = f.read()
+    global config
+    config = json.loads(data)
+
+    model_config = config['model_config']
+    
+    model = Flowtron(**model_config)
+
+    print("DONE")

@@ -1,1 +1,16 @@
+#Virtual Environment
 venv/*
+
+# MODELS
+models/flowtron_libritts.pt
+models/flowtron_libritts2p3k.pt
+models/flowtron_ljs.pt
+models/waveglow_256channels_universal_v5.pt
+
+
+
+# Local finder specific
+.DS_Store
+
+# VS Code 
+launch.json
